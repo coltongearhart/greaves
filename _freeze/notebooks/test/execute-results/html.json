@@ -1,0 +1,16 @@
+{
+  "hash": "ea5a5d3add93d1e05a8611884182bfdf",
+  "result": {
+    "markdown": "---\ntitle: test\n---\n\n::: {#cell-fig-norm .cell warning.hidden='true' message.hidden='true'}\n\n```{.r .cell-code .hidden}\n#| label: fig-norm\nplot(rnorm(10))\n```\n\n::: {.cell-output-display}\n![](test_files/figure-html/fig-norm-1.png){#fig-norm width=672}\n:::\n:::\n",
+    "supporting": [
+      "test_files"
+    ],
+    "filters": [
+      "rmarkdown/pagebreak.lua"
+    ],
+    "includes": {},
+    "engineDependencies": {},
+    "preserve": {},
+    "postProcess": true
+  }
+}

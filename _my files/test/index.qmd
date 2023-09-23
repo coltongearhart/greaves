@@ -1,0 +1,10 @@
+---
+title: Test
+author: Colton Gearhart
+---
+
+## Introduction
+
+{{< embed notebooks/test.qmd#fig-norm >}}
+
+@fig-norm is shown.

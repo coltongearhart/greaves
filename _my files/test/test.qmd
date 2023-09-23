@@ -1,0 +1,8 @@
+---
+title: test
+---
+
+```{r}
+#| label: fig-norm
+plot(rnorm(10))
+```

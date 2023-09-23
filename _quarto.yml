@@ -7,6 +7,8 @@ execute:
 format:
   html:
     toc: true
+    code_fold: true
+    df_print: kable
     comments:
       hypothesis: true
   docx: default
