@@ -1,0 +1,163 @@
+---
+title: Example 3
+author: Colton Gearhart
+format: html
+---
+
+## Load packages
+
+```{r}
+
+library(tidyverse)
+library(actuar)
+library(truncdist)
+options(scipen = 999)
+
+```
+
+## Set global plot options
+  
+```{r}
+
+# create default storytelling with data theme
+theme_swd = theme_minimal() + theme(
+  # titles and captions
+  plot.title = element_text(size = rel(1.75), color = "grey30"),
+  plot.subtitle = element_text(size = rel(1.25), color = "grey30"),
+  plot.caption = element_text(hjust = 0, color = "grey30"),
+  # axes
+  axis.title.x = element_text(hjust = 0, color = "grey30"),
+  axis.title.y = element_text(hjust = 1, color = "grey30"),
+  axis.line = element_line(color = "grey90"),
+  axis.ticks = element_line(color = "grey90"),
+  # plot background and gridlines
+  panel.background = element_blank(),
+  panel.grid.major = element_line(linewidth = rel(0.5), color = "grey90"),
+  panel.grid.minor = element_line(linewidth = rel(0.5), color = "grey90"),
+  # legend
+  legend.title = element_text(color = "grey30"),
+  legend.text = element_text(color = "grey30")
+)
+
+# set global plot theme
+theme_set(theme_swd)
+  
+```
+
+## Generate data
+
+```{r}
+
+# function to generate random data from conditional distributions
+generate_sample <- function(k = 10000, n = 50, lambda = 7000, alpha = 1, beta = 0.1, start_theta = 5, seed = 0) {
+  
+  # create matrix
+  x = matrix(data = NA, nrow = n, ncol = k)
+  theta = matrix(data = start_theta, nrow = 1, ncol = k)
+  total = matrix(data = NA, nrow = 1, ncol = k)
+  
+  # conditionally set random seed
+  if (seed > 0) set.seed(seed)
+  
+  # loop to generate new x's and theta's
+  i = 1
+  while (i <= k) {
+  
+    # generate x | theta based on truncated distribution
+    for (j in 1:n) {
+      if (j <= 0.5*n) {
+        x[j,i] = rtrunc(n = 1, a = 0, b = 1000, spec = "pareto2", min = 0, shape = theta[i], scale = lambda)
+      }
+      else if (j <= 0.8*n) {
+        x[j,i] = rtrunc(n = 1, a = 1000, b = 2000, spec = "pareto2", min = 1000, shape = theta[i], scale = lambda)
+      }
+      else if (j <= ceiling(0.94*n)) {
+        x[j,i] = rtrunc(n = 1, a = 2000, b = 3000, spec = "pareto2", min = 2000, shape = theta[i], scale = lambda)
+      }
+      else {
+        x[j,i] = rtrunc(n = 1, a = 3000, b = Inf, spec = "pareto2", min = 3000, shape = theta[i], scale = lambda)
+      }
+    }
+    
+    # calculate total
+    total[i] = sum(log(lambda+x[,i]))
+    
+    # generate a theta | x
+    if (i == k)
+      break
+    else 
+      theta[i+1] = rgamma(1, shape = 50+alpha, rate = beta-50*log(lambda)+total[i])
+    
+    # increase counter by 1
+    i = i+1
+    
+  }
+    
+  return(list(x = x, theta = theta))
+}
+  
+# initialize items
+k <- 100000
+n <- 50
+lambda <- 7000
+alpha <- 1
+beta <- 0.1
+
+# sample from conditional distributions
+data_sample <- generate_sample(k = k, n = n, lambda = lambda, alpha = alpha, beta = beta, start_theta = 5, seed = 0)
+
+```
+
+## Thinning and burn-in iterations
+
+```{r}
+
+# keep only every 10th x and theta
+# -> then get rid of first 500 samples
+burn_in <- 500
+x10 <- data_sample[["x"]] %>% 
+  data.frame %>% 
+  select(ends_with("0")) %>% 
+  select(!(1:burn_in))
+theta10 <- data_sample[["theta"]][seq(from = burn_in, to = k, by = 10)] %>% data.frame(theta = .)
+
+```
+  
+## Plot of estimated density
+  
+```{r}
+
+# create histogram of theta
+ggplot(data = theta10) +
+  geom_histogram(mapping = aes(x = theta, y = after_stat(density), fill = "Sampled Values"), binwidth = 0.5, col = "grey40") +
+  scale_fill_manual(name = "", values = c("Sampled Values" = "white"), guide = "legend") +
+  coord_cartesian(xlim = c(0,20)) +
+  labs(title = "Estimated density of θ",
+       x = expression(theta)) + 
+  theme_swd
+
+```
+
+## Calculate summary statistics
+
+```{r}
+
+# summary of theta
+summary(theta10)
+theta_sd <- sd(theta10$theta)
+
+# solve for the number of values exceeding 10000
+# -> first get subset of extreme cases (largest classes)
+# -> then count
+extreme_cases <- x10 %>% 
+  t %>% 
+  data.frame %>% 
+  select(all_of(ceiling(0.94*n):n))
+count <- extreme_cases %>% 
+  summarize(across(everything(), ~ sum(.x > 10000))) %>% 
+  sum
+  
+# calculate percentage
+proportion <- count/(dim(extreme_cases)[1] * dim(extreme_cases)[2])
+
+```

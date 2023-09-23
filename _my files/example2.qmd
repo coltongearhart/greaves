@@ -1,0 +1,193 @@
+---
+title: Example 2
+author: Colton Gearhart
+format: html
+---
+
+## Load packages
+
+```{r}
+
+library(tidyverse)
+options(scipen = 999)
+
+```
+
+## Set global plot options
+  
+```{r}
+
+# create default storytelling with data theme
+theme_swd = theme_minimal() + theme(
+  # titles and captions
+  plot.title = element_text(size = rel(1.75), color = "grey30"),
+  plot.subtitle = element_text(size = rel(1.25), color = "grey30"),
+  plot.caption = element_text(hjust = 0, color = "grey30"),
+  # axes
+  axis.title.x = element_text(hjust = 0, color = "grey30"),
+  axis.title.y = element_text(hjust = 1, color = "grey30"),
+  axis.line = element_line(color = "grey90"),
+  axis.ticks = element_line(color = "grey90"),
+  # plot background and gridlines
+  panel.background = element_blank(),
+  panel.grid.major = element_line(linewidth = rel(0.5), color = "grey90"),
+  panel.grid.minor = element_line(linewidth = rel(0.5), color = "grey90"),
+  # legend
+  legend.title = element_text(color = "grey30"),
+  legend.text = element_text(color = "grey30")
+)
+
+# set global plot theme
+theme_set(theme_swd)
+  
+```
+
+## Load required items
+
+```{r}
+  
+# function to generate random data from conditional distributions
+generate_sample <- function(k = 10000, alpha = 5, beta = 8, lambda = 12, 
+                            start_x = 5, start_p = 0.5, start_n = 15, seed = 0) {
+  
+  # create matrix
+  data_sample <- matrix(data = NA, nrow = k, ncol = 4, dimnames = list(NULL, c("iteration", "X", "p", "n")))
+  
+  # conditionally set random seed
+  if (seed > 0) set.seed(seed)
+  
+  # initialize counter and starting values
+  i = 1
+  data_sample[i, ] = c(i, start_x, start_p, start_n)
+  
+  # generate new data for x, p and n based on sequentially updated conditional distributions
+  while (i < k) {
+    
+    # record iteration
+    data_sample[i + 1, "iteration"] <- i + 1
+    
+    # sample from x | p , n
+    data_sample[i + 1, "X"] <- rbinom(n = 1, size = data_sample[i, "n"], prob = data_sample[i, "p"])
+    
+    # sample from p | x , n
+    data_sample[i + 1, "p"] <- rbeta(n = 1, shape1 = data_sample[i + 1, "X"] + alpha, shape2 = data_sample[i, "n"] + beta - data_sample[i + 1, "X"])
+    
+    # sample from n - x | x , p and then calculate final n = (n - x) + x
+    data_sample[i + 1, "n"] <- rpois(n = 1, lambda = lambda * (1 - data_sample[i + 1, "p"])) + data_sample[i + 1, "X"]
+    
+    # increase counter
+    i <- i + 1
+  }
+  
+  return(data_sample)
+}
+
+# function to solve for density estimates
+estimate_density <- function(input_values = 1, given_values1 = 1, given_values2 = 1, equation = 1) {
+  
+  # calculate density estimate
+  density_estimate = equation(input_values, given_values1, given_values2) %>% colMeans
+}
+
+# function to calculate mean of discrete probability distribution
+calc_mean <- function(x = 1, p_x = 1) {
+  sum(x * p_x)
+}
+
+# function to calculate variance of discrete probability distribution
+calc_var <- function(x = 1, p_x = 1) {
+  # calculate mean
+  mean <- sum(x * p_x)
+  # calculate variance
+  sum(((x - mean)^2) * p_x)
+}
+
+# function to perform calculations for x
+# -> x is technically a pmf
+density_x_given_p_and_n <- function(X = 1, P = 0.5, N = 1) {
+  
+  # specify density equation
+  choose(N, X) * P^X * (1 - P)^(N - X)
+}
+
+```
+  
+## Generate data
+
+```{r}
+
+# initialize items
+k <- 10000
+alpha <- 2
+beta <- 8
+lambda <- 12
+start_x <- 5
+start_p <- 0.5
+start_n <- 15
+
+# sample from conditional distributions
+data_sample <- generate_sample(k = k, alpha = alpha, beta = beta, lambda = lambda, start_x = start_x, start_p = start_p, start_n = start_n, seed = 0)
+
+# set number of burn-in iterations
+burn_in <- 100
+
+# remove burn-in iteration
+data_sample2 <- data_sample %>% 
+  data.frame %>% 
+  filter(iteration > burn_in) 
+
+```
+  
+## Solve for estimated density
+  
+```{r}
+
+# determine step size for x values
+if (diff(range(data_sample2$X)) > 75) {
+  step <- 5
+} else {
+  step <- 1
+}
+
+# create matrices of data to be used for x
+values_x <- seq(0, max(data_sample2$X), by = step)
+X <- matrix(data = , values_x, nrow = nrow(data_sample2), ncol = length(values_x), byrow = TRUE)
+P <- matrix(data = data_sample2$p, nrow = nrow(data_sample2), ncol = ncol(X))
+N <- matrix(data = data_sample2$n, nrow = nrow(data_sample2), ncol = ncol(X))
+
+# calculate density estimates for f(x) and scale so that probabilities sum to one
+# -> with a step of 1, it is always super close to 1
+# --> but if use a different step size, need to scale probabilities
+data_estimated_x <- estimate_density(input_values = X, given_values1 = P, given_values2 = N, equation = density_x_given_p_and_n) %>% 
+  data.frame(x = values_x, f_x_hat = .) %>% 
+  mutate(f_x_hat = f_x_hat/sum(f_x_hat))
+
+```
+
+## Create plots of estimated density and actual density and calculate / display summary statistics
+
+```{r}
+
+# calculate mean
+x_mean <- round(calc_mean(x = data_estimated_x$x, p_x = data_estimated_x$f_x_hat), 3)
+
+# calculate variance
+x_var <- round(calc_var(x = data_estimated_x$x, p_x = data_estimated_x$f_x_hat), 3)
+
+# X plot
+# -> density estimates with marginal density curve overlaid
+ggplot() +
+  geom_point(aes(x = x, y = f_x_hat, fill = "Estimated density"),
+             color = "black", shape = 21, size = 2, stroke = 1,
+             data = data_estimated_x) +
+  geom_linerange(aes(x = x, ymax = f_x_hat),
+                 ymin = 0,
+                 data = data_estimated_x) +
+  annotate("text", x = Inf, y = Inf, hjust = 1, vjust = 1,
+           label = paste0("mean = ", x_mean, "\nvar = ", x_var)) +
+  scale_fill_manual(values = "white") +
+  labs(title = "Estimated density of X", x = "x", y = expression(hat(f(x))),
+       fill = "") +
+  theme(legend.position = "bottom")
+
+```

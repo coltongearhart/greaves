@@ -1,4 +1,4 @@
-## A Quarto Manuscript Template
+## Greaves Undergraduate Summer Research Program
 
-This is a template repo for generating a manuscript from Quarto that accompanies the tutorial at: [Quarto Manuscripts: RStudio](https://quarto.org/docs/manuscripts/authoring/rstudio.html)
+This is a research project I completed in undergrad at NKU. Check out more content by me [here](https://github.com/coltongearhart).
 

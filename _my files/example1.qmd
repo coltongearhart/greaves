@@ -1,0 +1,301 @@
+---
+title: Example 1
+author: Colton Gearhart
+format: html
+---
+
+## Load packages
+
+```{r}
+
+library(tidyverse)
+library(ggpubr)
+options(scipen = 999)
+
+library(actuar) # for pareto() function
+```
+
+## Set global plot options
+  
+```{r}
+
+# create default storytelling with data theme
+theme_swd = theme_minimal() + theme(
+  # titles and captions
+  plot.title = element_text(size = rel(1.75), color = "grey30"),
+  plot.subtitle = element_text(size = rel(1.25), color = "grey30"),
+  plot.caption = element_text(hjust = 0, color = "grey30"),
+  # axes
+  axis.title.x = element_text(hjust = 0, color = "grey30"),
+  axis.title.y = element_text(hjust = 1, color = "grey30"),
+  axis.line = element_line(color = "grey90"),
+  axis.ticks = element_line(color = "grey90"),
+  # plot background and gridlines
+  panel.background = element_blank(),
+  panel.grid.major = element_line(linewidth = rel(0.5), color = "grey90"),
+  panel.grid.minor = element_line(linewidth = rel(0.5), color = "grey90"),
+  # legend
+  legend.title = element_text(color = "grey30"),
+  legend.text = element_text(color = "grey30")
+)
+
+# set global plot theme
+theme_set(theme_swd)
+  
+```
+
+## Load required items
+
+```{r}   
+  
+# function to generate random data from conditional distributions
+generate_sample <- function(n = 10000, alpha = 5, beta = 100, start_x = 5, start_lambda = 1.5, seed = 0) {
+  
+  # create matrix
+  # -> NOTE -> matrices are much faster than dataframes
+  data_sample <- matrix(data = NA, nrow = n, ncol = 3, dimnames = list(NULL, c("iteration", "X", "lambda")))
+  
+  # conditionally set random seed
+  if (seed > 0) set.seed(seed)
+  
+  # initialize counter and starting values
+  i = 1
+  data_sample[i, ] = c(i, start_x, start_lambda)
+  
+  # generate new data for x and lambda based on sequentially updated conditional distributions
+  while (i < n) {
+    
+    # record iteration
+    data_sample[i + 1, "iteration"] <- i + 1
+    
+    # sample from x | lambda
+    data_sample[i + 1, "X"] <- rexp(n = 1, rate = data_sample[i, "lambda"])
+    
+    # sample from lambda | x
+    data_sample[i + 1, "lambda"] <- rgamma(n = 1, shape = alpha + 1, rate = data_sample[i + 1, "X"] + beta)
+    
+    # increase counter
+    i <- i + 1
+  }
+  
+  return(data_sample)
+}
+
+# function to solve for density estimates
+estimate_density <- function(input_values = 1, given_values = 1, equation = 1) {
+  
+  # calculate density estimate
+  density_estimate <- equation(input_values, given_values) %>% colMeans
+}
+
+# function to perform calculations for x
+density_x_given_lambda <- function(X = 1, Lambda = 1) {
+  
+  # specify density equation
+  Lambda*exp(-Lambda*X)
+}
+
+# function to perform calculations for lambda
+density_lambda_given_x <- function(Lambda = 1, X = 1) {
+  
+  # specify density equation
+  (((X + beta)^(alpha + 1)) * (Lambda^alpha) * exp(-Lambda * (X + beta))) / gamma(alpha + 1)
+}
+
+```
+  
+## Generate data
+
+```{r}
+
+# initialize items
+n <- 1000
+alpha <- 5
+beta <- 10
+start_x <- 150
+start_lambda <- 2
+
+# sample from conditional distributions
+data_sample <- generate_sample(n = n, alpha = alpha, beta = beta, start_x = start_x, start_lambda = start_lambda, seed = 09222023)
+
+# create data for scatterplot
+data_scatter <- data_sample %>% 
+  data.frame %>% 
+  filter(iteration > n - 100)
+
+# set number of burn-in iterations
+burn_in <- 100
+
+# remove burn-in iteration
+data_sample2 <- data_sample %>% 
+  data.frame %>% 
+  filter(iteration > burn_in)
+    
+```
+  
+## Check diagnostic plots and set burn-in iterations
+
+```{r}
+# check convergence with a trace plot
+# -> line plot of generated values across iterations
+ggplot() +
+  geom_line(aes(x = iteration, y = X),
+            color = "grey", linewidth = 0.2,
+            data = data.frame(data_sample)) + 
+  labs(main = "Trace plot of generated X values")
+  
+```
+
+```{r}
+#| label: fig-diag-scatter-plot-x
+#| fig-cap: "Scatterplot of generated sample values of X"
+
+# create scatterplots of last iterations to visually check for randomness
+plot_scatter_x <- ggplot() +
+  geom_point(aes(x = iteration, y = X),
+             color = "black", fill = "white", shape = 21, size = 1, stroke = 0.5,
+             data = data_scatter) +
+  labs(title = "Scatterplot of generated sampled values for X", x = "Iteration", y = "x")
+
+```
+
+```{r}
+#| label: fig-diag-scatter-plot-lambda
+#| fig-cap: "Scatterplot of generated sample values of λ"
+
+plot_scatter_lambda <- ggplot() +
+  geom_point(aes(x = iteration, y = lambda),
+             color = "black", fill = "white", shape = 21, size = 1, stroke = 0.5,
+             data = data_scatter) +
+  labs(title = "Scatterplot of generated sampled valuesd for λ", x = "Iteration", y = expression(lambda))
+
+```
+
+## Create histograms of sampled values and include density curves
+
+```{r}
+
+# set maximum for x plot
+limit_x <- quantile(data_sample2$X, 0.995)
+
+# in order to get the correct legend that I want...
+# -> have to trick ggplot by adding another aesthetic to the desired geom (just map the correct aesthetic to a string constant of what I want it to say)
+# -> then do a scale_<...>_manual(values = "< desired color >")
+# -> also in a labs statement, make the name of label of that aesthetic an empty string
+# cannot do this trick more than once with the same aesthetic
+# -> so if need the legend for multiple things, they must be mapped to different aesthetics
+# create histogram of x with marginal density curve overlaid
+plot_hist_x <- ggplot() +
+  geom_histogram(aes(x = X, y = after_stat(density), fill = "Sampled values"),
+                 bins = 40,  color = "grey60",
+                 data = data_sample2) +
+  stat_function(aes(x = x, color = "Actual density"),
+                # I have since added "min = 0"
+                fun = dpareto2, args = list(min = 0, shape = alpha, scale = beta),
+                data = data.frame(x = c(0, limit_x)),
+                n = 100000, size = 0.75) +
+  coord_cartesian(xlim = c(0, limit_x)) +
+  scale_fill_manual(values = "white") +
+  scale_color_manual(values = "grey40") +
+  labs(title = "Histogram of generated sample values of X", x = "x",
+       color = "", fill = "") +
+  theme(legend.position = "bottom")
+
+# create histogram of lambda with marginal density curve overlaid
+# -> no limits were made for lmabda because there won't be huge outliers
+plot_hist_lambda <- ggplot() +
+  geom_histogram(aes(x = lambda, y = after_stat(density), fill = "Sampled values"),
+                 bins = 40, color = "grey60",
+                 data = data_sample2) +
+  stat_function(aes(x = x, color = "Actual density"),
+                fun = dgamma, args = list(shape = alpha, rate = beta),
+                data = data.frame(x = c(0, max(data_sample2$lambda))),
+                n = 100000, size = 0.75) +
+  scale_fill_manual(values = "white") +
+  scale_color_manual(values = "grey40") +
+  labs(title = "Histogram of generated sample values of λ", x = expression(lambda),
+       color = "", fill = "") +
+  theme(legend.position = "bottom")
+
+# display plots
+ggarrange(plot_hist_x, plot_hist_lambda)
+  
+```
+  
+## Solve for estimated densities
+  
+```{r}
+
+# set max for plot and calculate points to estimate density of x at (if is to make sure step isn't zero)
+step_x <- ifelse(diff(range(data_sample2$X)) > 1,
+                 round((quantile(data_sample2$X, 0.995) - min(data_sample2$X))/40, 5) %>% as.numeric,
+                 0.01)
+# set maximum for lambda plot
+limit_x = quantile(data_sample2$X, 0.995)
+
+# create matrices of data to be used for x
+values_x <- seq(0, limit_x, by = step_x)
+X1 <- matrix(data = , values_x, nrow = nrow(data_sample2), ncol = length(values_x), byrow = TRUE)
+Lambda1 <- matrix(data = data_sample2$lambda, nrow = nrow(data_sample2), ncol = ncol(X1))
+
+# calculate density estimates for f(x)
+data_estimated_x <- estimate_density(input_values = X1, given_values = Lambda1, equation = density_x_given_lambda) %>% 
+  data.frame(x = values_x, f_x_hat = .)
+
+# set max for plot and  calculate points to estimate density of lambda at (if is to make sure step isn't zero)
+step_lambda <- ifelse(diff(range(data_sample2$lambda)) > 1,
+                      round((quantile(data_sample2$lambda, 0.995) - min(data_sample2$lambda))/40, 5) %>% as.numeric,
+                      0.01)
+
+# create matrices of data to be used for lambda
+values_lambda <- seq(0, max(data_sample2$lambda), by = step_lambda)
+Lambda2 <- matrix(data = , values_lambda, nrow = nrow(data_sample2), ncol = length(values_lambda), byrow = TRUE)
+X2 <- matrix(data = data_sample2$X, nrow = nrow(data_sample2), ncol = ncol(Lambda2))
+
+# calculate density estimates for f(lambda)
+data_estimated_lambda <- estimate_density(input_values = Lambda2, given_values = X2, density_lambda_given_x) %>% 
+  data.frame(lambda = values_lambda, f_lambda_hat = .)
+
+```
+
+## Create plots of estimated densities and actual densities
+
+```{r}
+
+# X plot
+# -> density estimates with marginal density curve overlaid
+plot_estimated_x <- ggplot() +
+  geom_point(aes(x = x, y = f_x_hat, fill = "Estimated density"),
+             color = "black", shape = 21, size = 2, stroke = 1,
+             data = data_estimated_x) +
+  stat_function(aes(x = x, color = "Actual density"),
+                fun = dpareto2, args = list(min = 0, shape = alpha, scale = beta),
+                data = data.frame(x = c(0, limit_x)),
+                n = 100000, size = 0.75) +
+  coord_cartesian(xlim = c(0, limit_x)) +
+  scale_fill_manual(values = "white") +
+  scale_color_manual(values = "grey60") +
+  labs(title = "Estimated and actual density of X", x = "x", y = expression(f(hat(x))),
+       color = "", fill = "") +
+  theme(legend.position = "bottom")
+
+# Lambda plot
+# -> density estimates with marginal density curve overlaid
+plot_estimated_lambda <- ggplot() +
+  geom_point(aes(x = lambda, y = f_lambda_hat, fill = "Estimated density"),
+             color = "black", shape = 21, size = 2, stroke = 1,
+             data = data_estimated_lambda) +
+  stat_function(aes(x = x, color = "Actual density"),
+                fun = dgamma, args = list(shape = alpha, rate = beta),
+                data = data.frame(x = c(0, max(data_sample2$lambda))),
+                n = 100000, size = 0.75) +
+  scale_fill_manual(values = "white") +
+  scale_color_manual(values = "grey60") +
+  labs(title = "Estimated and actual density of  λ", x = expression(lambda), y = expression(f(hat(lambda))),
+       color = "", fill = "") +
+  theme(legend.position = "bottom")
+
+# display plots
+ggarrange(plot_estimated_x, plot_estimated_lambda)
+  
+```
