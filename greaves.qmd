@@ -36,9 +36,15 @@ appendix-cite-as: display
 number-sections: true
 format:
   html:
-    embed-resources: true
     toc: true
     toc-location: left
+    code-link: true
+    code-fold: true
+    code-tools: true
+    code-block-border-left: "#2C3E50"
+    highlight-style: github
+fig-cap-location: top
+fig-align: left
 ---
 
 <!-- NOTE: global options for code folding not working -->
@@ -49,17 +55,16 @@ format:
 
 <!-- % (followsp is short for 'follow special') shortcut that can be used for iid or ind ~ 'Named dist ' in normal font with space before parameters would go -->
 
-```{r}
+```{r knitr}
 #| label: knitr
 #| echo: false
 
 # set knitr options
 knitr::opts_chunk$set(
-  cache = FALSE, # cache output and objects to speed up building process (broken by modifying code chunks / options -> standalone file can't cache)
+  cache = TRUE, # cache output and objects to speed up building process (broken by modifying code chunks / options -> standalone file can't cache)
   comment = '', # remove ## prefix for printed text output
   message = FALSE, # suppress printing of messages in the output document
   warning = FALSE, # suppress printing of warnings in the output document
-  fig.pos = "H", # hold figure position so it stays in the order it should be in relative to the surrounding code / text
   out.width = "50%" # set output width of plots
 )
 
@@ -72,18 +77,16 @@ options(scipen = 999)
 
 ```{r}
 #| label: packages
-#| code-fold: true
 
 # load packages
 library(tidyverse)
-library(actuar) # for pareto() function
+library(actuar) # for pareto()
 library(truncdist) # for rtrunc()
 
 ```
 
 ```{r}
 #| label: styling
-#| echo: false
 
 # create default storytelling with data theme
 theme_swd <- theme_minimal() + theme(
@@ -105,6 +108,8 @@ theme_swd <- theme_minimal() + theme(
   legend.text = element_text(color = "grey30"),
   legend.position = "top" 
 )
+
+theme_set(theme_swd)
 
 # default function to display dataframes nicely
 # options -> vector of column names (gets processed by kable(), so can be latex) and rounding digits
@@ -278,7 +283,6 @@ For illustrative purposes, assume $\alpha = 5$ and $\beta = 100$. This reduces t
 
 ```{r}
 #| label: generate-data1
-#| code-fold: true
 
 # function to generate random data from conditional distributions
 generate_sample1 <- function(n = 10000, alpha = 5, beta = 100, start_x = 5, start_lambda = 1.5, seed = 0) {
@@ -345,16 +349,17 @@ data_sample2 %>% glimpse
 
 ```{r}
 #| label: diag-trace-plot
-#| code-fold: true
+#| fig-cap: "Trace plot of generated X values" 
 #| include: false
 
 # check convergence with a trace plot
 # -> line plot of generated values across iterations
 ggplot() +
-  geom_line(aes(x = iteration, y = X),
-            color = "grey", linewidth = 0.2,
-            data = data.frame(data_sample)) + 
-  labs(main = "Trace plot of generated X values") + 
+  geom_line(aes(x = iteration,
+                y = X),
+            data = data.frame(data_sample),
+            color = "grey", linewidth = 0.2) + 
+  labs(x = "Iteration") + 
   theme_swd
 
 ```
@@ -366,14 +371,14 @@ ggplot() +
 ```{r}
 #| label: fig-diag-scatter-plot-x
 #| fig-cap: "Scatterplot of generated sample values of X"
-#| code-fold: true
 
 # create scatterplots of last iterations to visually check for randomness
 ggplot() +
-  geom_point(aes(x = iteration, y = X),
-             color = "black", fill = "white", shape = 21, size = 1, stroke = 0.5,
-             data = data_scatter) +
-  labs(title = "Scatterplot of generated sampled values for X", x = "Iteration", y = "x") + 
+  geom_point(aes(x = iteration,
+                 y = X),
+             data = data_scatter,
+             color = "black", fill = "white", shape = 21, size = 1, stroke = 0.5) +
+  labs(x = "Iteration", y = "x") + 
   theme_swd
 
 ```
@@ -381,13 +386,14 @@ ggplot() +
 ```{r}
 #| label: fig-diag-scatter-plot-lambda
 #| fig-cap: "Scatterplot of generated sample values of λ"
-#| code-fold: true
 
 ggplot() +
-  geom_point(aes(x = iteration, y = lambda),
-             color = "black", fill = "white", shape = 21, size = 1, stroke = 0.5,
-             data = data_scatter) +
-  labs(title = "Scatterplot of generated sampled valuesd for λ", x = "Iteration", y = expression(lambda)) + 
+  geom_point(aes(x = iteration,
+                 y = lambda),
+             data = data_scatter,
+             color = "black", fill = "white", shape = 21, size = 1, stroke = 0.5) +
+  labs(x = "Iteration",
+       y = expression(lambda)) + 
   theme_swd
 
 ```
@@ -398,7 +404,7 @@ Next, @fig-hist-x and @fig-hist-lambda show the histograms of the last 99,500 sa
 
 ```{r}
 #| label: fig-hist-x
-#| code-fold: true
+#| fig-cap: "Histogram of generated sample values of X"
 
 # set maximum for x plot
 limit_x <- quantile(data_sample2$X, 0.995)
@@ -412,40 +418,43 @@ limit_x <- quantile(data_sample2$X, 0.995)
 # create histogram of x with marginal density curve overlaid
 ggplot() +
   geom_histogram(aes(x = X, y = after_stat(density), fill = "Sampled values"),
-                 bins = 40,  color = "grey60",
-                 data = data_sample2) +
+                 data = data_sample2,
+                 bins = 40,
+                 color = "grey60") +
   stat_function(aes(x = x, color = "Actual density"),
-                # I have since added "min = 0"
-                fun = dpareto2, args = list(min = 0, shape = alpha, scale = beta),
                 data = data.frame(x = c(0, limit_x)),
-                n = 100000, size = 0.75) +
+                fun = dpareto2, args = list(min = 0, shape = alpha, scale = beta), n = 100000,
+                size = 0.75) +
   coord_cartesian(xlim = c(0, limit_x)) +
   scale_fill_manual(values = "white") +
   scale_color_manual(values = "grey40") +
-  labs(title = "Histogram of generated sample values of X", x = "x",
-       color = "", fill = "") +
+  labs(x = "x",
+       color = "",
+       fill = "") +
   theme_swd
 
 ```
 
 ```{r}
 #| label: fig-hist-lambda
-#| code-fold: true
+#| fig-cap: "Histogram of generated sample values of λ"
 
 # create histogram of lambda with marginal density curve overlaid
-# -> no limits were made for lmabda because there won't be huge outliers
+# -> no limits were made for lambda because there won't be huge outliers
 ggplot() +
   geom_histogram(aes(x = lambda, y = after_stat(density), fill = "Sampled values"),
-                 bins = 40, color = "grey60",
-                 data = data_sample2) +
+                 data = data_sample2,
+                 bins = 40,
+                 color = "grey60") +
   stat_function(aes(x = x, color = "Actual density"),
-                fun = dgamma, args = list(shape = alpha, rate = beta),
                 data = data.frame(x = c(0, max(data_sample2$lambda))),
-                n = 100000, size = 0.75) +
+                fun = dgamma, args = list(shape = alpha, rate = beta), n = 100000,
+                size = 0.75) +
   scale_fill_manual(values = "white") +
   scale_color_manual(values = "grey40") +
-  labs(title = "Histogram of generated sample values of λ", x = expression(lambda),
-       color = "", fill = "") +
+  labs(x = expression(lambda),
+       color = "",
+       fill = "") +
   theme_swd
 
 ```
@@ -478,7 +487,6 @@ After solving for and plotting these estimated densities, direct models of their
 
 ```{r}
 #| label: solve-est-densities1
-#| code-fold: true
 
 # function to solve for density estimates
 estimate_density1 <- function(input_values = 1, given_values = 1, equation = 1) {
@@ -503,10 +511,10 @@ density_lambda_given_x <- function(Lambda = 1, X = 1) {
 
 # set max for plot and calculate points to estimate density of x at (if is to make sure step isn't zero)
 step_x <- ifelse(diff(range(data_sample2$X)) > 1,
-                 round((quantile(data_sample2$X, 0.995) - min(data_sample2$X))/40, 5) %>% as.numeric,
-                 0.01)
+                 round((quantile(data_sample2$X, 0.995) - min(data_sample2$X))/40, 5) %>% as.numeric, 0.01)
+
 # set maximum for lambda plot
-limit_x = quantile(data_sample2$X, 0.995)
+limit_x <- quantile(data_sample2$X, 0.995)
 
 # create matrices of data to be used for x
 values_x <- seq(0, limit_x, by = step_x)
@@ -522,8 +530,7 @@ data_estimated_x %>% glimpse
 
 # set max for plot and  calculate points to estimate density of lambda at (if is to make sure step isn't zero)
 step_lambda <- ifelse(diff(range(data_sample2$lambda)) > 1,
-                      round((quantile(data_sample2$lambda, 0.995) - min(data_sample2$lambda))/40, 5) %>% as.numeric,
-                      0.01)
+                      round((quantile(data_sample2$lambda, 0.995) - min(data_sample2$lambda))/40, 5) %>% as.numeric, 0.01)
 
 # create matrices of data to be used for lambda
 values_lambda <- seq(0, max(data_sample2$lambda), by = step_lambda)
@@ -531,7 +538,7 @@ Lambda2 <- matrix(data = , values_lambda, nrow = nrow(data_sample2), ncol = leng
 X2 <- matrix(data = data_sample2$X, nrow = nrow(data_sample2), ncol = ncol(Lambda2))
 
 # calculate density estimates for f(lambda)
-data_estimated_lambda <- estimate_density1(input_values = Lambda2, given_values = X2, density_lambda_given_x) %>% 
+data_estimated_lambda <- estimate_density1(input_values = Lambda2, given_values = X2, density_lambda_given_x) %>%
   data.frame(lambda = values_lambda, f_lambda_hat = .)
 
 # preview
@@ -541,30 +548,32 @@ data_estimated_lambda %>% glimpse
 
 ```{r}
 #| label: fig-est-density-x1
-#| code-fold: true
+#| fig-cap: "Estimated and actual density of X"
 
 # X plot
 # -> density estimates with marginal density curve overlaid
 ggplot() +
   geom_point(aes(x = x, y = f_x_hat, fill = "Estimated density"),
-             color = "black", shape = 21, size = 2, stroke = 1,
-             data = data_estimated_x) +
+             data = data_estimated_x,
+             color = "black", shape = 21, size = 2, stroke = 1) +
   stat_function(aes(x = x, color = "Actual density"),
                 fun = dpareto2, args = list(min = 0, shape = alpha, scale = beta),
-                data = data.frame(x = c(0, limit_x)),
-                n = 100000, size = 0.75) +
+                data = data.frame(x = c(0, limit_x)),n = 100000,
+                size = 0.75) +
   coord_cartesian(xlim = c(0, limit_x)) +
   scale_fill_manual(values = "white") +
   scale_color_manual(values = "grey60") +
-  labs(title = "Estimated and actual density of X", x = "x", y = expression(f(hat(x))),
-       color = "", fill = "") +
+  labs(x = "x",
+       y = expression(f(hat(x))),
+       color = "",
+       fill = "") +
   theme_swd
 
 ```
 
 ```{r}
 #| label: fig-est-density-lambda
-#| code-fold: true
+#| fig-cap: "Estimated and actual density of  λ"
 
 # Lambda plot
 # -> density estimates with marginal density curve overlaid
@@ -578,8 +587,10 @@ ggplot() +
                 n = 100000, size = 0.75) +
   scale_fill_manual(values = "white") +
   scale_color_manual(values = "grey60") +
-  labs(title = "Estimated and actual density of  λ", x = expression(lambda), y = expression(f(hat(lambda))),
-       color = "", fill = "") +
+  labs(x = expression(lambda),
+       y = expression(f(hat(lambda))),
+       color = "",
+       fill = "") +
   theme_swd
   
 ```
@@ -658,7 +669,6 @@ Note that the distribution $f(p\mid x,n)$ follows a beta distribution with param
 
 ```{r}
 #| label: generate-data2
-#| code-fold: true
 
 # function to generate random data from conditional distributions
 generate_sample <- function(k = 10000, alpha = 5, beta = 8, lambda = 12, 
@@ -718,6 +728,7 @@ data_sample2 <- data_sample %>%
 
 # preview
 data_sample2 %>% glimpse
+
 ```
 
 The output of this simulation is an approximately independent random sample from each of the conditional distributions $f(n \mid x,p)$, $f(p \mid x, n)$, and $f(x \mid p, n)$. We are interested in studying the distribution of $f(x)$, which as noted earlier could not be found in closed form. However, by averaging equation @eq-conditional-x-given-np over the simulated values $P^{(i)}$ and $N^{(i)}$, a density estimate for the random variable $X$ can be obtained. In other words, the estimated value of the density of $f(x)$ at the point $x$ is given by
@@ -728,7 +739,6 @@ $$
 
 ```{r}
 #| label: solve-est-density2
-#| code-fold: true
 
 # function to solve for density estimates
 estimate_density <- function(input_values = 1, given_values1 = 1, given_values2 = 1, equation = 1) {
@@ -767,11 +777,12 @@ data_estimated_x <- estimate_density(input_values = X, given_values1 = P, given_
 
 # preview
 data_estimated_x %>% glimpse
+
 ```
 
 ```{r}
 #| label: fig-est-density-x2
-#| code-fold: true
+#| fig-cap: "Estimated density of X"
 
 # function to calculate mean of discrete probability distribution
 calc_mean <- function(x = 1, p_x = 1) {
@@ -796,15 +807,18 @@ x_var <- round(calc_var(x = data_estimated_x$x, p_x = data_estimated_x$f_x_hat),
 # -> density estimates with marginal density curve overlaid
 ggplot() +
   geom_point(aes(x = x, y = f_x_hat, fill = "Estimated density"),
-             color = "black", shape = 21, size = 2, stroke = 1,
-             data = data_estimated_x) +
+             data = data_estimated_x,
+             color = "black", shape = 21, size = 2, stroke = 1) +
   geom_linerange(aes(x = x, ymax = f_x_hat),
-                 ymin = 0,
-                 data = data_estimated_x) +
-  annotate("text", x = Inf, y = Inf, hjust = 1, vjust = 1,
-           label = paste0("mean = ", x_mean, "\nvar = ", x_var)) +
+                 data = data_estimated_x,
+                 ymin = 0) +
+  annotate("text",
+           label = paste0("mean = ", x_mean, "\nvar = ", x_var),
+           x = Inf, y = Inf,
+           hjust = 1, vjust = 1) +
   scale_fill_manual(values = "white") +
-  labs(title = "Estimated density of X", x = "x", y = expression(hat(f(x))),
+  labs(x = "x",
+       y = expression(hat(f(x))),
        fill = "") +
   theme_swd
 
@@ -866,7 +880,6 @@ By applying Gibbs sampling to the `r n+1` full conditional distributions defined
 
 ```{r}
 #| label: generate_data3
-#| code-fold: true
 
 # function to generate random data from conditional distributions
 generate_sample <- function(k = 10000, n = 50, lambda = 7000, alpha = 1, beta = 0.1, start_theta = 5, seed = 0) {
@@ -932,7 +945,6 @@ Additionally, let each replication run for ten iterations with only the values g
 
 ```{r}
 #| label: thin-and-burn
-#| code-fold: true
 
 # keep only every 10th x and theta
 # -> then get rid of first 500 samples
@@ -951,15 +963,18 @@ theta10 %>% glimpse
 
 ```{r}
 #| label: fig-est-density-theta
-#| code-fold: true
+#| fig-cap: "Estimated density of θ"
 
 # create histogram of theta 
 ggplot(data = theta10) + 
-  geom_histogram(mapping = aes(x = theta, y = after_stat(density), fill = "Sampled Values"), binwidth = 0.5, col = "grey40") +
+  geom_histogram(aes(x = theta,
+                     y = after_stat(density),
+                     fill = "Sampled Values"),
+                 binwidth = 0.5,
+                 col = "grey40") +
   scale_fill_manual(name = "", values = c("Sampled Values" = "white"), guide = "legend") +
   coord_cartesian(xlim = c(0,20)) +
-  labs(title = "Estimated density of θ",
-       x = expression(theta)) + 
+  labs(x = expression(theta)) + 
   theme_swd 
 
 ```
@@ -967,7 +982,6 @@ ggplot(data = theta10) +
 
 ```{r}
 #| label: calc-summary-stats
-#| code-fold: true
 
 # summary of theta
 summary(theta10)
