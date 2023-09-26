@@ -33,21 +33,23 @@ citation:
   page: ""
   url: https://www.siam.org/Portals/0/Publications/SIURO/Volume%2011/S016609.pdf?ver=2018-06-13-135921-713
 appendix-cite-as: display
-number-sections: true
 format:
   html:
+    output-file: index.html
+    theme: flatly
     toc: true
     toc-location: left
+    toc-expand: true
     code-link: true
     code-fold: true
     code-tools: true
     code-block-border-left: "#2C3E50"
     highlight-style: github
+number-sections: true
+title-block-banner: true
 fig-cap-location: top
 fig-align: left
 ---
-
-<!-- NOTE: global options for code folding not working -->
 
 <!-- % define LaTeX macros (/shortcuts) -->
 
@@ -73,20 +75,22 @@ options(scipen = 999)
 
 ```
 
+::: callout-note
+## Quarto blog publish details
+
+This blog was created using [Quarto](https://quarto.org/) and published with Github Pages. 
+:::
+
+
 ## R Setup {.unnumbered}
 
 ```{r}
-#| label: packages
+#| label: setup
 
 # load packages
 library(tidyverse)
 library(actuar) # for pareto()
 library(truncdist) # for rtrunc()
-
-```
-
-```{r}
-#| label: styling
 
 # create default storytelling with data theme
 theme_swd <- theme_minimal() + theme(
@@ -109,7 +113,17 @@ theme_swd <- theme_minimal() + theme(
   legend.position = "top" 
 )
 
+```
+
+```{r}
+#| include: false
+
+# NOTE theme_set(theme_swd) not working for some reason, so adding individually to all plots 
+
+# set global theme
 theme_set(theme_swd)
+
+# NOTE: display_nice() not working for some reason, so not included and just glimpsing values 
 
 # default function to display dataframes nicely
 # options -> vector of column names (gets processed by kable(), so can be latex) and rounding digits
@@ -133,10 +147,6 @@ display_nice <- function(df, col.names = NA, digits = 3) {
 }
 
 ```
-
-<!-- NOTE: theme_set(theme_swd) not working for some reason, so adding individually to all plots -->
-
-<!-- NOTE: display_nice() not working for some reason, so not included and just glimpsing values -->
 
 ## Introduction
 
@@ -1010,4 +1020,10 @@ By monitoring the values taken on by the augmented data as the simulation procee
 ## References {.unnumbered}
 
 ::: {#refs}
+:::
+
+::: callout-tip
+## Github repository for code
+
+You can find the code to reproduce this report at [coltongearhart/greaves](https://github.com/coltongearhart/greaves)
 :::
