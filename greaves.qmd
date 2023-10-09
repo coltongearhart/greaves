@@ -45,6 +45,7 @@ format:
     code-tools: true
     code-block-border-left: "#2C3E50"
     highlight-style: github
+    df-print: kable
 number-sections: true
 title-block-banner: true
 fig-cap-location: top
@@ -53,9 +54,8 @@ fig-align: left
 
 <!-- % define LaTeX macros (/shortcuts) -->
 
+<!-- % shortcut for ~ 'Named dist ' in normal font with space before parameters would go -->
 \newcommand{\follow}[1]{\sim \text{#1}\,}
-
-<!-- % (followsp is short for 'follow special') shortcut that can be used for iid or ind ~ 'Named dist ' in normal font with space before parameters would go -->
 
 ```{r knitr}
 #| label: knitr
@@ -119,6 +119,7 @@ theme_swd <- theme_minimal() + theme(
 #| include: false
 
 # NOTE theme_set(theme_swd) not working for some reason, so adding individually to all plots 
+# same for table styling
 
 # set global theme
 theme_set(theme_swd)
@@ -137,7 +138,6 @@ display_nice <- function(df, col.names = NA, nrow = 10, digits = 3) {
   # convert to knitr_kable and style
   # -> always want html format, left aligned with not full width
   # -> table.attr -> have to tell quarto to not process the table (https://github.com/quarto-dev/quarto-cli/issues/5737)
-  # -> still not getting picked up by quarto....
   kable_styling(kable(head(df, n = nrow),
                       col.names = col.names,
                       format = "html",
@@ -357,9 +357,7 @@ data_sample2 <- data_sample %>%
 ```
 
 ```{r}
-#| label: preview-sample1
-#| echo: false
-
+#| label: preview-sample1 
 # preview
 display_nice(data_sample2, col.names = c("Iteration", "$X$", "$\\lambda$"))
 
@@ -1009,14 +1007,15 @@ burn_in <- 500
 x10 <- data_sample[["x"]] %>% 
   data.frame %>% 
   select(ends_with("0")) %>% 
-  select(!all_of(1:burn_in))
+  select(!(1:burn_in))
 theta10 <- data_sample[["theta"]][seq(from = burn_in, to = k, by = 10)] %>% data.frame(theta = .)
 
 ```
 
 ```{r}
 #| label: preview-sample3-thinned-burned
- 
+#| echo: false
+
 # preview
 x10 %>% select(all_of(1:10)) %>% display_nice
 display_nice(theta10, col.names = "$\\theta$")
