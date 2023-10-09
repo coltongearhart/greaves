@@ -81,7 +81,6 @@ options(scipen = 999)
 This blog was created using [Quarto](https://quarto.org/) and published with Github Pages. 
 :::
 
-
 ## R Setup {.unnumbered}
 
 ```{r}
@@ -91,6 +90,7 @@ This blog was created using [Quarto](https://quarto.org/) and published with Git
 library(tidyverse)
 library(actuar) # for pareto()
 library(truncdist) # for rtrunc()
+library(kableExtra) # for kable_styling()
 
 # create default storytelling with data theme
 theme_swd <- theme_minimal() + theme(
@@ -123,13 +123,11 @@ theme_swd <- theme_minimal() + theme(
 # set global theme
 theme_set(theme_swd)
 
-# NOTE: display_nice() not working for some reason, so not included and just glimpsing values 
-
 # default function to display dataframes nicely
-# options -> vector of column names (gets processed by kable(), so can be latex) and rounding digits
+# options -> vector of column names (gets processed by kable(), so can be latex), number of rows to display, and rounding digits
 # -> needed because formatting of raw dataframe is bad when output in markdown
 # -> nesting functions instead of piping so doesn't require magrittr
-display_nice <- function(df, col.names = NA, digits = 3) {
+display_nice <- function(df, col.names = NA, nrow = 10, digits = 3) {
   
   # set columns names to the given vector or keep names or original df
   if (identical(col.names, NA)) {
@@ -138,10 +136,14 @@ display_nice <- function(df, col.names = NA, digits = 3) {
   
   # convert to knitr_kable and style
   # -> always want html format, left aligned with not full width
-  kable_styling(kable(df,
+  # -> table.attr -> have to tell quarto to not process the table (https://github.com/quarto-dev/quarto-cli/issues/5737)
+  # -> still not getting picked up by quarto....
+  kable_styling(kable(head(df, n = nrow),
                       col.names = col.names,
                       format = "html",
-                      digits = digits),
+                      digits = digits,
+                      table.attr = 'data-quarto-disable-processing="true"'),
+                bootstrap_options = "hover",
                 full_width = FALSE,
                 position = "left")
 }
@@ -352,8 +354,14 @@ data_sample2 <- data_sample %>%
   data.frame %>% 
   filter(iteration > burn_in)
     
+```
+
+```{r}
+#| label: preview-sample1
+#| echo: false
+
 # preview
-data_sample2 %>% glimpse
+display_nice(data_sample2, col.names = c("Iteration", "$X$", "$\\lambda$"))
 
 ```
 
@@ -496,7 +504,7 @@ $$
 After solving for and plotting these estimated densities, direct models of their respective target distribution are revealed. The next two figures show this relationship.
 
 ```{r}
-#| label: solve-est-densities1
+#| label: solve-est-densities-x1
 
 # function to solve for density estimates
 estimate_density1 <- function(input_values = 1, given_values = 1, equation = 1) {
@@ -535,8 +543,19 @@ Lambda1 <- matrix(data = data_sample2$lambda, nrow = nrow(data_sample2), ncol = 
 data_estimated_x <- estimate_density1(input_values = X1, given_values = Lambda1, equation = density_x_given_lambda) %>% 
   data.frame(x = values_x, f_x_hat = .)
 
+```
+
+```{r}
+#| label: preview-estimated-x1
+#| echo: false
+
 # preview
-data_estimated_x %>% glimpse
+display_nice(data_estimated_x, col.names = c("$x$", "$f\\hat(x)$"))
+
+```
+
+```{r}
+#| label: solve-est-densities-lambda1
 
 # set max for plot and  calculate points to estimate density of lambda at (if is to make sure step isn't zero)
 step_lambda <- ifelse(diff(range(data_sample2$lambda)) > 1,
@@ -551,8 +570,14 @@ X2 <- matrix(data = data_sample2$X, nrow = nrow(data_sample2), ncol = ncol(Lambd
 data_estimated_lambda <- estimate_density1(input_values = Lambda2, given_values = X2, density_lambda_given_x) %>%
   data.frame(lambda = values_lambda, f_lambda_hat = .)
 
+```
+
+```{r}
+#| label: preview-estimated-lambda1
+#| echo: false
+
 # preview
-data_estimated_lambda %>% glimpse
+display_nice(data_estimated_lambda, col.names = c("$\\lambda$", "$f\\hat(\\lambda)$"))
 
 ```
 
@@ -736,8 +761,14 @@ data_sample2 <- data_sample %>%
   data.frame %>% 
   filter(iteration > burn_in)
 
+```
+
+```{r}
+#| label: preview-sample2
+#| echo: false
+
 # preview
-data_sample2 %>% glimpse
+display_nice(data_sample2, col.names = c("Iteration", "$X$", "$N$" ,"$P$"))
 
 ```
 
@@ -785,8 +816,14 @@ data_estimated_x <- estimate_density(input_values = X, given_values1 = P, given_
   data.frame(x = values_x, f_x_hat = .) %>% 
   mutate(f_x_hat = f_x_hat/sum(f_x_hat))
 
+```
+
+```{r}
+#| label: preview-estimated-x2
+#| echo: false
+
 # preview
-data_estimated_x %>% glimpse
+display_nice(data_estimated_x, col.names = c("$x$", "$f\\hat(x)$"))
 
 ```
 
@@ -951,6 +988,16 @@ data_sample <- generate_sample(k = k, n = n, lambda = lambda, alpha = alpha, bet
 
 ```
 
+```{r}
+#| label: preview-sample3
+#| echo: false
+
+# preview
+data_sample[["x"]] %>% data.frame %>% select(all_of(1:5)) %>% display_nice
+data_sample[["theta"]] %>% data.frame %>% select(all_of(1:5)) %>% display_nice(col.names = c("$\\theta_1$", "$\\theta_2$", "$\\theta_3$", "$\\theta_4$", "$\\theta_5$"))
+
+```
+
 Additionally, let each replication run for ten iterations with only the values generated in the final iteration of each replication will be used. This technique is called thinning, which takes care of the auto-correlation effect of the generated sample. Further, by taking the last 9500 values of the Markov chain, an approximately independent random sample from the posterior distribution $P(\theta \mid \text{observed data})$ can be obtained.
 
 ```{r}
@@ -962,12 +1009,17 @@ burn_in <- 500
 x10 <- data_sample[["x"]] %>% 
   data.frame %>% 
   select(ends_with("0")) %>% 
-  select(!(1:burn_in))
+  select(!all_of(1:burn_in))
 theta10 <- data_sample[["theta"]][seq(from = burn_in, to = k, by = 10)] %>% data.frame(theta = .)
 
+```
+
+```{r}
+#| label: preview-sample3-thinned-burned
+ 
 # preview
-x10 %>% select(all_of(1:10)) %>% glimpse
-theta10 %>% glimpse
+x10 %>% select(all_of(1:10)) %>% display_nice
+display_nice(theta10, col.names = "$\\theta$")
 
 ```
 
@@ -1025,5 +1077,5 @@ By monitoring the values taken on by the augmented data as the simulation procee
 ::: callout-tip
 ## Github repository for code
 
-You can find the code to reproduce this report at [coltongearhart/greaves](https://github.com/coltongearhart/greaves)
+You can find the code to reproduce this report at [coltongearhart/greaves](https://github.com/coltongearhart/greaves).
 :::
