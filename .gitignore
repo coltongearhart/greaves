@@ -9,10 +9,6 @@
 .DS_Store
 
 *.html
-*cache/
-*files/
+*_cache/
+*_files/
 
-.log
-.aux
-.synctex.g
-.thm
