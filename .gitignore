@@ -12,3 +12,7 @@
 *_cache/
 *_files/
 
+.log
+.aux
+.synctex.g
+.thm
