@@ -7,3 +7,12 @@
 .Rdata
 .httr-oauth
 .DS_Store
+
+*.html
+*cache/
+*files/
+
+.log
+.aux
+.synctex.g
+.thm
