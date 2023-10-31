@@ -36,6 +36,7 @@ appendix-cite-as: display
 format:
   html:
     output-file: index.html
+    embed-resources: true
     theme: flatly
     toc: true
     toc-location: left
@@ -63,7 +64,7 @@ fig-align: left
 
 # set knitr options
 knitr::opts_chunk$set(
-  cache = TRUE, # cache output and objects to speed up building process (broken by modifying code chunks / options -> standalone file can't cache)
+  cache = FALSE, # cache output and objects to speed up building process (broken by modifying code chunks / options -> standalone file can't cache)
   comment = '', # remove ## prefix for printed text output
   message = FALSE, # suppress printing of messages in the output document
   warning = FALSE, # suppress printing of warnings in the output document

@@ -8,9 +8,7 @@
 .httr-oauth
 .DS_Store
 
-*.html
 *_cache/
-*_files/
 
 .log
 .aux
