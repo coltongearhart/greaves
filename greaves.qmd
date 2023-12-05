@@ -136,7 +136,7 @@ display_nice <- function(df, col.names = NA, nrow = 10, digits = 3) {
     col.names = colnames(df)
   }
   
-  # convert to knitr_kable and style
+  # convert to knitr::kable and style
   # -> always want html format, left aligned with not full width
   # -> table.attr -> have to tell quarto to not process the table (https://github.com/quarto-dev/quarto-cli/issues/5737)
   kable_styling(kable(head(df, n = nrow),
@@ -360,7 +360,7 @@ data_sample2 <- data_sample %>%
 ```{r}
 #| label: preview-sample1 
 # preview
-display_nice(data_sample2, col.names = c("Iteration", "$X$", "$\\lambda$"))
+display_nice(data_sample2, col.names = c("Iteration", "X", "lambda"))
 
 ```
 
@@ -549,7 +549,7 @@ data_estimated_x <- estimate_density1(input_values = X1, given_values = Lambda1,
 #| echo: false
 
 # preview
-display_nice(data_estimated_x, col.names = c("$x$", "$f\\hat(x)$"))
+display_nice(data_estimated_x, col.names = c("x", "f(x-hat)"))
 
 ```
 
@@ -576,7 +576,7 @@ data_estimated_lambda <- estimate_density1(input_values = Lambda2, given_values 
 #| echo: false
 
 # preview
-display_nice(data_estimated_lambda, col.names = c("$\\lambda$", "$f\\hat(\\lambda)$"))
+display_nice(data_estimated_lambda, col.names = c("lambda", "f(lambda-hat)"))
 
 ```
 
@@ -767,7 +767,7 @@ data_sample2 <- data_sample %>%
 #| echo: false
 
 # preview
-display_nice(data_sample2, col.names = c("Iteration", "$X$", "$N$" ,"$P$"))
+display_nice(data_sample2, col.names = c("Iteration", "X", "N" ,"P"))
 
 ```
 
@@ -822,7 +822,7 @@ data_estimated_x <- estimate_density(input_values = X, given_values1 = P, given_
 #| echo: false
 
 # preview
-display_nice(data_estimated_x, col.names = c("$x$", "$f\\hat(x)$"))
+display_nice(data_estimated_x, col.names = c("x", "f(x-hat)"))
 
 ```
 
@@ -993,7 +993,7 @@ data_sample <- generate_sample(k = k, n = n, lambda = lambda, alpha = alpha, bet
 
 # preview
 data_sample[["x"]] %>% data.frame %>% select(all_of(1:5)) %>% display_nice
-data_sample[["theta"]] %>% data.frame %>% select(all_of(1:5)) %>% display_nice(col.names = c("$\\theta_1$", "$\\theta_2$", "$\\theta_3$", "$\\theta_4$", "$\\theta_5$"))
+data_sample[["theta"]] %>% data.frame %>% select(all_of(1:5)) %>% display_nice(col.names = c("theta_1", "theta_2", "theta_3", "theta_4", "theta_5"))
 
 ```
 
@@ -1019,7 +1019,7 @@ theta10 <- data_sample[["theta"]][seq(from = burn_in, to = k, by = 10)] %>% data
 
 # preview
 x10 %>% select(all_of(1:10)) %>% display_nice
-display_nice(theta10, col.names = "$\\theta$")
+display_nice(theta10, col.names = "theta")
 
 ```
 
